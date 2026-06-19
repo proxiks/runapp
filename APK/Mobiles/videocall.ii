@@ -1,0 +1,327 @@
+#include <jni.h>
+#include <string>
+#include <memory>
+#include <mutex>
+#include <map>
+
+#include "api/peer_connection_interface.h"
+#include "api/create_peerconnection_factory.h"
+#include "api/audio_codecs/builtin_audio_decoder_factory.h"
+#include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/video_codecs/builtin_video_decoder_factory.h"
+#include "api/video_codecs/builtin_video_encoder_factory.h"
+#include "pc/peer_connection_wrapper.h"
+#include "modules/audio_device/include/audio_device.h"
+#include "modules/video_capture/video_capture_factory.h"
+#include "rtc_base/ssl_adapter.h"
+#include "rtc_base/thread.h"
+
+using namespace webrtc;
+
+static std::unique_ptr<rtc::Thread> network_thread;
+static std::unique_ptr<rtc::Thread> worker_thread;
+static std::unique_ptr<rtc::Thread> signaling_thread;
+static rtc::scoped_refptr<PeerConnectionFactoryInterface> factory;
+static std::map<jlong, rtc::scoped_refptr<PeerConnectionInterface>> peer_connections;
+static std::mutex pc_mutex;
+
+// JNI callback references
+static JavaVM* g_vm = nullptr;
+static jclass g_observer_class = nullptr;
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_initialize(JNIEnv* env, jclass clazz) {
+    env->GetJavaVM(&g_vm);
+    g_observer_class = (jclass)env->NewGlobalRef(clazz);
+
+    rtc::InitializeSSL();
+    
+    network_thread = rtc::Thread::CreateWithSocketServer();
+    network_thread->Start();
+    worker_thread = rtc::Thread::Create();
+    worker_thread->Start();
+    signaling_thread = rtc::Thread::Create();
+    signaling_thread->Start();
+
+    factory = CreatePeerConnectionFactory(
+        network_thread.get(), worker_thread.get(), signaling_thread.get(),
+        nullptr,  // audio device module - use default
+        CreateBuiltinAudioEncoderFactory(),
+        CreateBuiltinAudioDecoderFactory(),
+        CreateBuiltinVideoEncoderFactory(),
+        CreateBuiltinVideoDecoderFactory(),
+        nullptr, nullptr);
+}
+
+class PCObserver : public PeerConnectionObserver {
+public:
+    PCObserver(jlong handle) : handle_(handle) {}
+
+    void OnSignalingChange(PeerConnectionInterface::SignalingState state) override {}
+    
+    void OnIceCandidate(const IceCandidateInterface* candidate) override {
+        std::string sdp;
+        candidate->ToString(&sdp);
+        
+        JNIEnv* env;
+        g_vm->AttachCurrentThread(&env, nullptr);
+        
+        jmethodID mid = env->GetStaticMethodID(g_observer_class, "onIceCandidate",
+            "(JLjava/lang/String;ILjava/lang/String;)V");
+        
+        env->CallStaticVoidMethod(g_observer_class, mid, handle_,
+            env->NewStringUTF(candidate->sdp_mid().c_str()),
+            candidate->sdp_mline_index(),
+            env->NewStringUTF(sdp.c_str()));
+    }
+
+    void OnConnectionChange(PeerConnectionInterface::PeerConnectionState state) override {
+        JNIEnv* env;
+        g_vm->AttachCurrentThread(&env, nullptr);
+        
+        jmethodID mid = env->GetStaticMethodID(g_observer_class, "onConnectionChange",
+            "(JI)V");
+        env->CallStaticVoidMethod(g_observer_class, mid, handle_, (jint)state);
+    }
+
+    void OnTrack(rtc::scoped_refptr<RtpTransceiverInterface> transceiver) override {
+        auto track = transceiver->receiver()->track();
+        if (track->kind() == MediaStreamTrackInterface::kVideoKind) {
+            JNIEnv* env;
+            g_vm->AttachCurrentThread(&env, nullptr);
+            
+            jmethodID mid = env->GetStaticMethodID(g_observer_class, "onRemoteVideoTrack",
+                "(J)V");
+            env->CallStaticVoidMethod(g_observer_class, mid, handle_);
+        }
+    }
+
+    void OnAddStream(rtc::scoped_refptr<MediaStreamInterface> stream) override {}
+    void OnRemoveStream(rtc::scoped_refptr<MediaStreamInterface> stream) override {}
+    void OnDataChannel(rtc::scoped_refptr<DataChannelInterface> channel) override {}
+    void OnRenegotiationNeeded() override {}
+    void OnIceConnectionChange(PeerConnectionInterface::IceConnectionState state) override {}
+    void OnIceGatheringChange(PeerConnectionInterface::IceGatheringState state) override {}
+
+private:
+    jlong handle_;
+};
+
+class CreateSDPObserver : public CreateSessionDescriptionObserver {
+public:
+    CreateSDPObserver(jlong handle, bool is_offer) 
+        : handle_(handle), is_offer_(is_offer) {}
+
+    void OnSuccess(SessionDescriptionInterface* desc) override {
+        std::string sdp;
+        desc->ToString(&sdp);
+        
+        JNIEnv* env;
+        g_vm->AttachCurrentThread(&env, nullptr);
+        
+        jmethodID mid = env->GetStaticMethodID(g_observer_class, 
+            is_offer_ ? "onOfferCreated" : "onAnswerCreated",
+            "(JLjava/lang/String;)V");
+        env->CallStaticVoidMethod(g_observer_class, mid, handle_,
+            env->NewStringUTF(sdp.c_str()));
+        
+        delete desc;
+    }
+
+    void OnFailure(webrtc::RTCError error) override {}
+
+private:
+    jlong handle_;
+    bool is_offer_;
+};
+
+class SetSDPObserver : public SetSessionDescriptionObserver {
+public:
+    void OnSuccess() override {}
+    void OnFailure(webrtc::RTCError error) override {}
+};
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_createPeerConnection(
+    JNIEnv* env, jclass clazz, jstring stunServer) {
+    
+    const char* stun = env->GetStringUTFChars(stunServer, nullptr);
+    
+    PeerConnectionInterface::RTCConfiguration config;
+    config.sdp_semantics = SdpSemantics::kUnifiedPlan;
+    
+    webrtc::PeerConnectionInterface::IceServer server;
+    server.uri = std::string(stun);
+    config.servers.push_back(server);
+    
+    // Add TURN servers for NAT traversal
+    webrtc::PeerConnectionInterface::IceServer turn_server;
+    turn_server.uri = "turn:turn.runapp.in:3478";
+    turn_server.username = "runapp";
+    turn_server.password = "lyfron_turn_2026";
+    config.servers.push_back(turn_server);
+
+    auto observer = std::make_unique<PCObserver>(reinterpret_cast<jlong>(observer.get()));
+    
+    auto pc = factory->CreatePeerConnection(config, nullptr, nullptr, observer.get());
+    
+    jlong handle = reinterpret_cast<jlong>(pc.get());
+    
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    peer_connections[handle] = pc;
+    
+    env->ReleaseStringUTFChars(stunServer, stun);
+    
+    // Store observer to keep it alive
+    // (simplified - use smart pointers in production)
+    
+    return handle;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_createOffer(JNIEnv* env, jclass clazz, jlong handle) {
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it == peer_connections.end()) return;
+    
+    auto observer = rtc::make_ref_counted<CreateSDPObserver>(handle, true);
+    it->second->CreateOffer(observer.get(), PeerConnectionInterface::RTCOfferAnswerOptions());
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_createAnswer(JNIEnv* env, jclass clazz, jlong handle) {
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it == peer_connections.end()) return;
+    
+    auto observer = rtc::make_ref_counted<CreateSDPObserver>(handle, false);
+    it->second->CreateAnswer(observer.get(), PeerConnectionInterface::RTCOfferAnswerOptions());
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_setRemoteDescription(
+    JNIEnv* env, jclass clazz, jlong handle, jstring type, jstring sdp) {
+    
+    const char* type_str = env->GetStringUTFChars(type, nullptr);
+    const char* sdp_str = env->GetStringUTFChars(sdp, nullptr);
+    
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it != peer_connections.end()) {
+        auto desc = CreateSessionDescription(type_str, sdp_str);
+        auto observer = rtc::make_ref_counted<SetSDPObserver>();
+        it->second->SetRemoteDescription(desc.release(), observer.get());
+    }
+    
+    env->ReleaseStringUTFChars(type, type_str);
+    env->ReleaseStringUTFChars(sdp, sdp_str);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_setLocalDescription(
+    JNIEnv* env, jclass clazz, jlong handle, jstring type, jstring sdp) {
+    
+    const char* type_str = env->GetStringUTFChars(type, nullptr);
+    const char* sdp_str = env->GetStringUTFChars(sdp, nullptr);
+    
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it != peer_connections.end()) {
+        auto desc = CreateSessionDescription(type_str, sdp_str);
+        auto observer = rtc::make_ref_counted<SetSDPObserver>();
+        it->second->SetLocalDescription(desc.release(), observer.get());
+    }
+    
+    env->ReleaseStringUTFChars(type, type_str);
+    env->ReleaseStringUTFChars(sdp, sdp_str);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_addIceCandidate(
+    JNIEnv* env, jclass clazz, jlong handle, jstring sdpMid, jint index, jstring candidate) {
+    
+    const char* mid = env->GetStringUTFChars(sdpMid, nullptr);
+    const char* cand = env->GetStringUTFChars(candidate, nullptr);
+    
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it != peer_connections.end()) {
+        auto ice = CreateIceCandidate(mid, index, cand);
+        it->second->AddIceCandidate(ice.release());
+    }
+    
+    env->ReleaseStringUTFChars(sdpMid, mid);
+    env->ReleaseStringUTFChars(candidate, cand);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_addAudioTrack(JNIEnv* env, jclass clazz, jlong handle) {
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it == peer_connections.end()) return;
+    
+    auto audio_source = factory->CreateAudioSource(AudioOptions());
+    auto audio_track = factory->CreateAudioTrack("audio_track", audio_source.get());
+    
+    auto transceiver = it->second->AddTransceiver(audio_track);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_addVideoTrack(
+    JNIEnv* env, jclass clazz, jlong handle, jobject surface) {
+    
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it == peer_connections.end()) return;
+    
+    // Get Android camera capturer
+    auto capturer = webrtc::CreateAndroidCameraCapturer(
+        webrtc::JavaVideoTrackSourceInterface::Create(env, nullptr));
+    
+    auto video_source = factory->CreateVideoSource(std::move(capturer));
+    auto video_track = factory->CreateVideoTrack("video_track", video_source.get());
+    
+    auto transceiver = it->second->AddTransceiver(video_track);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_setAudioEnabled(
+    JNIEnv* env, jclass clazz, jlong handle, jboolean enabled) {
+    
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it == peer_connections.end()) return;
+    
+    for (auto& sender : it->second->GetSenders()) {
+        auto track = sender->track();
+        if (track && track->kind() == MediaStreamTrackInterface::kAudioKind) {
+            track->set_enabled(enabled);
+        }
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_setVideoEnabled(
+    JNIEnv* env, jclass clazz, jlong handle, jboolean enabled) {
+    
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it == peer_connections.end()) return;
+    
+    for (auto& sender : it->second->GetSenders()) {
+        auto track = sender->track();
+        if (track && track->kind() == MediaStreamTrackInterface::kVideoKind) {
+            track->set_enabled(enabled);
+        }
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_jatin_runapp_webrtc_NativeWebRTC_close(JNIEnv* env, jclass clazz, jlong handle) {
+    std::lock_guard<std::mutex> lock(pc_mutex);
+    auto it = peer_connections.find(handle);
+    if (it != peer_connections.end()) {
+        it->second->Close();
+        peer_connections.erase(it);
+    }
+}
