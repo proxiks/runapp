@@ -1,0 +1,39 @@
+{
+  "scan_paths": [
+    "/usr/games",
+    "/opt",
+    "/home/*/Downloads",
+    "C:\\Program Files",
+    "C:\\Program Files (x86)",
+    "C:\\Windows\\System32\\drivers"
+  ],
+  "watch_extensions": [
+    ".exe", ".dll", ".sys", ".drv",
+    ".ini", ".mui", ".lnk",
+    ".ps1", ".psm1", ".py", ".pyc",
+    ".js", ".vbs", ".lua", ".bat", ".cmd"
+  ],
+  "entropy_threshold": 7.2,
+  "ai_threshold": 85.0,
+  "block_threshold": 95.0,
+  "scan_interval": 300,
+  "max_threads": 8,
+  "quarantine_path": "/var/lyfron/quarantine",
+  "signature_db": "/var/lyfron/signatures.bin",
+  "model_path": "/var/lyfron/models/atdc_model.bin",
+  "server_endpoint": "tcp://127.0.0.1:13338",
+  "auto_block": true,
+  "auto_quarantine": true,
+  "kernel_monitoring": true,
+  "realtime_monitoring": true,
+  "heuristic_rules": {
+    "suspicious_apis": [
+      "VirtualAlloc", "WriteProcessMemory", "CreateRemoteThread",
+      "NtUnmapViewOfSection", "SetWindowsHookEx", "ReflectiveLoader"
+    ],
+    "dangerous_patterns": [
+      "Invoke-Expression", "IEX", "DownloadString",
+      "WScript.Shell", "eval(", "Function.prototype"
+    ]
+  }
+}
