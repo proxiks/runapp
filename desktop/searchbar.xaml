@@ -1,0 +1,89 @@
+<UserControl x:Class="RunApp.Desktop.Controls.SearchBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="44">
+
+    <Border x:Name="SearchContainer"
+            Background="{DynamicResource SurfaceHoverBrush}"
+            CornerRadius="22"
+            BorderThickness="1"
+            BorderBrush="Transparent">
+        
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Search Icon -->
+            <Path Grid.Column="0"
+                  Data="M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"
+                  Stroke="{DynamicResource TextMutedBrush}"
+                  StrokeThickness="2"
+                  Stretch="Uniform"
+                  Width="16" Height="16"
+                  Margin="14,0,0,0"
+                  VerticalAlignment="Center"/>
+
+            <!-- Search Input -->
+            <TextBox Grid.Column="1"
+                     x:Name="SearchInput"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Foreground="{DynamicResource TextPrimaryBrush}"
+                     CaretBrush="{DynamicResource AccentBrush}"
+                     FontSize="15"
+                     VerticalContentAlignment="Center"
+                     Padding="10,0"
+                     TextChanged="OnTextChanged"
+                     GotFocus="OnGotFocus"
+                     LostFocus="OnLostFocus"/>
+
+            <!-- Placeholder -->
+            <TextBlock Grid.Column="1"
+                       x:Name="PlaceholderText"
+                       Text="Search RunApp"
+                       Foreground="{DynamicResource TextMutedBrush}"
+                       FontSize="15"
+                       VerticalAlignment="Center"
+                       Margin="10,0,0,0"
+                       IsHitTestVisible="False"/>
+
+            <!-- Clear Button -->
+            <Button Grid.Column="2"
+                    x:Name="ClearButton"
+                    Content="✕"
+                    Visibility="Collapsed"
+                    Click="OnClearClick"
+                    Style="{StaticResource IconButtonStyle}"/>
+
+            <!-- Filter Button -->
+            <Button Grid.Column="3"
+                    Content="⚡"
+                    Click="OnFilterClick"
+                    Style="{StaticResource IconButtonStyle}"
+                    Margin="0,0,8,0"/>
+        </Grid>
+    </Border>
+
+    <!-- Dropdown Results -->
+    <Popup x:Name="SearchPopup"
+           Placement="Bottom"
+           PlacementTarget="{Binding ElementName=SearchContainer}"
+           Width="{Binding ActualWidth, ElementName=SearchContainer}"
+           MaxHeight="400"
+           StaysOpen="False">
+        
+        <Border Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Margin="0,4,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="ResultsPanel"/>
+            </ScrollViewer>
+        </Border>
+    </Popup>
+</UserControl>

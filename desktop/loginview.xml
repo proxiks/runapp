@@ -1,0 +1,108 @@
+<Window x:Class="RunApp.Desktop.Views.LoginView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="RunApp - Login" 
+        Height="700" Width="450"
+        WindowStartupLocation="CenterScreen"
+        Background="#18191A">
+
+    <Grid>
+        <Border Background="#242526" 
+                CornerRadius="12" 
+                Margin="24" 
+                Padding="32">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" 
+                                Color="#000000" 
+                                Opacity="0.4" 
+                                ShadowDepth="0"/>
+            </Border.Effect>
+
+            <StackPanel>
+                <!-- Logo -->
+                <TextBlock Text="⚡" 
+                         FontSize="64" 
+                         HorizontalAlignment="Center" 
+                         Margin="0,0,0,8"/>
+                
+                <TextBlock Text="RunApp" 
+                         FontSize="28" 
+                         FontWeight="Bold" 
+                         Foreground="#1877F2"
+                         HorizontalAlignment="Center"/>
+                
+                <TextBlock Text="Connect with your world" 
+                         Foreground="#B0B3B8" 
+                         HorizontalAlignment="Center" 
+                         Margin="0,4,0,24"/>
+
+                <!-- Login Form -->
+                <StackPanel x:Name="LoginPanel">
+                    <TextBox x:Name="EmailBox" 
+                            Style="{StaticResource InputStyle}"
+                            Tag="Email or phone"/>
+                    
+                    <PasswordBox x:Name="PasswordBox" 
+                               Style="{StaticResource PasswordStyle}"
+                               Tag="Password"/>
+                    
+                    <Button Content="Log In" 
+                          Click="OnLoginClick"
+                          Style="{StaticResource PrimaryButtonStyle}"/>
+                    
+                    <TextBlock Text="Forgot password?" 
+                             Foreground="#1877F2" 
+                             HorizontalAlignment="Center"
+                             Margin="0,12"
+                             Cursor="Hand"
+                             MouseDown="OnForgotPassword"/>
+                    
+                    <Separator Margin="0,16" Background="#3A3B3C"/>
+                    
+                    <Button Content="Create New Account" 
+                          Click="OnRegisterClick"
+                          Style="{StaticResource SuccessButtonStyle}"/>
+                </StackPanel>
+
+                <!-- Verification Panel (hidden initially) -->
+                <StackPanel x:Name="VerifyPanel" Visibility="Collapsed">
+                    <TextBlock Text="Enter verification code" 
+                             FontSize="18" 
+                             FontWeight="SemiBold"
+                             Foreground="White"
+                             HorizontalAlignment="Center"
+                             Margin="0,0,0,8"/>
+                    
+                    <TextBlock x:Name="CodeSentText"
+                             Foreground="#B0B3B8" 
+                             TextWrapping="Wrap"
+                             HorizontalAlignment="Center"
+                             Margin="0,0,0,16"/>
+                    
+                    <TextBox x:Name="CodeBox" 
+                            MaxLength="6"
+                            FontSize="24"
+                            CharacterCasing="Upper"
+                            TextAlignment="Center"
+                            Style="{StaticResource CodeInputStyle}"/>
+                    
+                    <Button Content="Verify" 
+                          Click="OnVerifyClick"
+                          Style="{StaticResource PrimaryButtonStyle}"
+                          Margin="0,16,0,0"/>
+                    
+                    <TextBlock Text="Resend code" 
+                             Foreground="#1877F2" 
+                             HorizontalAlignment="Center"
+                             Margin="0,12"
+                             Cursor="Hand"
+                             MouseDown="OnResendCode"/>
+                    
+                    <Button Content="← Back to login" 
+                          Click="OnBackToLogin"
+                          Style="{StaticResource TextButtonStyle}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

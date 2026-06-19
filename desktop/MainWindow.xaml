@@ -1,0 +1,248 @@
+<Window x:Class="RunApp.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RunApp.Desktop"
+        xmlns:controls="clr-namespace:RunApp.Desktop.Controls"
+        xmlns:views="clr-namespace:RunApp.Desktop.Views"
+        Title="RunApp" 
+        Height="800" Width="1200"
+        MinHeight="600" MinWidth="900"
+        Background="{DynamicResource BackgroundBrush}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles/SettingsStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header with Search -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo -->
+                <StackPanel Grid.Column="0" 
+                          Orientation="Horizontal" 
+                          VerticalAlignment="Center"
+                          Margin="0,0,20,0">
+                    <TextBlock Text="⚡" FontSize="28" Margin="0,0,8,0"/>
+                    <TextBlock Text="RunApp" 
+                             FontSize="20" 
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource AccentBrush}"/>
+                </StackPanel>
+
+                <!-- Search Bar -->
+                <controls:SearchBar Grid.Column="1"
+                                  x:Name="MainSearch"
+                                  MaxWidth="400"
+                                  HorizontalAlignment="Left"
+                                  ResultSelected="OnSearchResult"
+                                  FilterClicked="OnSearchFilter"/>
+
+                <!-- Right Actions -->
+                <Button Grid.Column="2"
+                      Content="🔔"
+                      Click="OnNotifications"
+                      Style="{StaticResource IconButtonStyle}"
+                      Margin="8,0"/>
+
+                <Button Grid.Column="3"
+                      Content="⚙️"
+                      Click="OnSettings"
+                      Style="{StaticResource IconButtonStyle}"
+                      Margin="8,0"/>
+
+                <Border Grid.Column="4"
+                      Width="36" Height="36"
+                      CornerRadius="18"
+                      Background="{DynamicResource AccentBrush}"
+                      Margin="8,0,0,0"
+                      Cursor="Hand"
+                      MouseDown="OnProfileClick">
+                    <TextBlock Text="J" 
+                             Foreground="White"
+                             FontWeight="Bold"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>   <!-- Left Sidebar -->
+                <ColumnDefinition Width="*"/>      <!-- Main Feed -->
+                <ColumnDefinition Width="320"/>    <!-- Right Sidebar -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Sidebar -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <StackPanel Margin="12">
+                    <Button Style="{StaticResource NavButtonStyle}"
+                          Click="OnHomeClick">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🏠" Margin="0,0,12,0"/>
+                            <TextBlock Text="Home"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button Style="{StaticResource NavButtonStyle}"
+                          Click="OnReelsClick">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🎬" Margin="0,0,12,0"/>
+                            <TextBlock Text="Reels"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button Style="{StaticResource NavButtonStyle}"
+                          Click="OnVerifiedClick">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✓" Margin="0,0,12,0"/>
+                            <TextBlock Text="Verified"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button Style="{StaticResource NavButtonStyle}"
+                          Click="OnSavedClick">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔖" Margin="0,0,12,0"/>
+                            <TextBlock Text="Saved"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <Separator Margin="0,8" Background="{DynamicResource BorderBrush}"/>
+                    
+                    <TextBlock Text="Your Shortcuts"
+                             Foreground="{DynamicResource TextMutedBrush}"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Margin="12,8"/>
+                    
+                    <Button Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="32" Height="32"
+                                  CornerRadius="16"
+                                  Background="LinearGradient(135deg, #1877f2, #6b4c9a)"
+                                  Margin="0,0,12,0">
+                                <TextBlock Text="L" Foreground="White"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         FontWeight="Bold"/>
+                            </Border>
+                            <TextBlock Text="Lyfron Devs"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- Center Content -->
+            <ContentControl Grid.Column="1"
+                          x:Name="MainContent"
+                          Margin="0"/>
+
+            <!-- Right Sidebar -->
+            <Border Grid.Column="2"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1,0,0,0">
+                <StackPanel Margin="16">
+                    <TextBlock Text="Sponsored"
+                             Foreground="{DynamicResource TextMutedBrush}"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Margin="0,0,0,12"/>
+                    
+                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                          CornerRadius="8"
+                          Padding="12"
+                          Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="RunApp Verified"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     FontWeight="SemiBold"/>
+                            <TextBlock Text="Get the blue badge for ₹300/month"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                     FontSize="13"
+                                     Margin="0,4"/>
+                            <Button Content="Learn More"
+                                  Click="OnVerifiedClick"
+                                  Style="{StaticResource PrimarySmallButtonStyle}"
+                                  Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Contacts"
+                             Foreground="{DynamicResource TextMutedBrush}"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Margin="0,0,0,12"/>
+                    
+                    <!-- Contact list populated dynamically -->
+                    <StackPanel x:Name="ContactsList"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Settings Overlay -->
+        <Border Grid.Row="0" Grid.RowSpan="2"
+                x:Name="SettingsOverlay"
+                Background="{DynamicResource BackgroundBrush}"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="280"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Settings Sidebar -->
+                <Border Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,0,1,0">
+                    <StackPanel>
+                        <TextBlock Text="Menu"
+                                 FontSize="24"
+                                 FontWeight="Bold"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 Margin="16"/>
+                        
+                        <Button Style="{StaticResource SettingsNavStyle}"
+                              Click="OnSettingsBack">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="←" Margin="0,0,12,0"/>
+                                <TextBlock Text="Back to RunApp"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Settings Content -->
+                <views:SettingsView Grid.Column="1"
+                                  x:Name="SettingsView"
+                                  LogoutRequested="OnLogoutRequested"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

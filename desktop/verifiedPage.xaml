@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="RunApp.Mobile.Views.VerifiedPage"
+             Title="RunApp Verified"
+             BackgroundColor="#18191A">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="0">
+
+            <!-- Header -->
+            <Grid BackgroundColor="#242526" Padding="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Badge -->
+                <Frame Grid.Row="0"
+                       WidthRequest="80"
+                       HeightRequest="80"
+                       CornerRadius="40"
+                       BackgroundColor="#1877F2"
+                       BorderColor="Transparent"
+                       HorizontalOptions="Center"
+                       Margin="0,20,0,16">
+                    <Label Text="✓"
+                           FontSize="40"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Frame>
+
+                <Label Grid.Row="1"
+                       Text="RunApp Verified"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       HorizontalOptions="Center"/>
+
+                <Label Grid.Row="2"
+                       Text="Stand out. Get seen. No ads."
+                       FontSize="14"
+                       TextColor="#B0B3B8"
+                       HorizontalOptions="Center"/>
+            </Grid>
+
+            <!-- Price Card -->
+            <Border BackgroundColor="#242526"
+                    Stroke="#3A3B3C"
+                    StrokeThickness="1"
+                    Margin="20,16"
+                    Padding="24"
+                    StrokeShape="RoundRectangle 16">
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="4">
+                        <Label Text="₹300"
+                               FontSize="48"
+                               FontAttributes="Bold"
+                               TextColor="White"/>
+                        <Label Text="/month"
+                               FontSize="16"
+                               TextColor="#65676B"
+                               VerticalOptions="End"
+                               Margin="0,0,0,8"/>
+                    </HorizontalStackLayout>
+
+                    <Label Text="Cancel anytime. No hidden fees."
+                           FontSize="12"
+                           TextColor="#65676B"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Benefits -->
+            <VerticalStackLayout Margin="20,0" Spacing="12">
+                <Label Text="What's included:"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       Margin="0,0,0,8"/>
+
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="✓" TextColor="#42B72A" FontSize="20"/>
+                    <Label Text="Blue verified badge" TextColor="White" FontSize="15"/>
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="🚫" FontSize="20"/>
+                    <Label Text="Zero ads in Reels" TextColor="White" FontSize="15"/>
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="🚀" FontSize="20"/>
+                    <Label Text="Priority algorithm ranking" TextColor="White" FontSize="15"/>
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="📊" FontSize="20"/>
+                    <Label Text="Advanced analytics" TextColor="White" FontSize="15"/>
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="🔒" FontSize="20"/>
+                    <Label Text="Verified-only DMs" TextColor="White" FontSize="15"/>
+                </HorizontalStackLayout>
+
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="🎧" FontSize="20"/>
+                    <Label Text="24/7 priority support" TextColor="White" FontSize="15"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Pay Button -->
+            <Button x:Name="PayButton"
+                    Text="Subscribe — ₹300/month"
+                    Clicked="OnPayClicked"
+                    BackgroundColor="#1877F2"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    FontSize="16"
+                    CornerRadius="12"
+                    HeightRequest="56"
+                    Margin="20,24,20,12"/>
+
+            <Button Text="Restore Purchases"
+                    Clicked="OnRestoreClicked"
+                    BackgroundColor="Transparent"
+                    TextColor="#1877F2"
+                    FontSize="14"/>
+
+            <!-- Security -->
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="8" Margin="0,16">
+                <Label Text="🔒" FontSize="12"/>
+                <Label Text="Secured by Razorpay &amp; Lyfron"
+                       FontSize="12"
+                       TextColor="#65676B"/>
+            </HorizontalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+    <!-- Loading Overlay -->
+    <Grid x:Name="LoadingOverlay"
+          BackgroundColor="#CC000000"
+          IsVisible="False">
+        <ActivityIndicator IsRunning="True"
+                          Color="#1877F2"
+                          WidthRequest="48"
+                          HeightRequest="48"/>
+        <Label Text="Processing payment..."
+               TextColor="White"
+               HorizontalOptions="Center"
+               Margin="0,80,0,0"/>
+    </Grid>
+
+</ContentPage> 

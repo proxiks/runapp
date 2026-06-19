@@ -1,0 +1,23 @@
+<Application.Resources>
+    <!-- Converters -->
+    <local:ReadToBrushConverter x:Key="ReadToBrush"/>
+    <local:TypeToBrushConverter x:Key="TypeToBrush"/>
+    <local:UnreadToVisibilityConverter x:Key="UnreadToVisibility"/>
+    
+    <!-- Button Styles -->
+    <Style x:Key="GhostButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="FontSize" Value="16"/>
+    </Style>
+    
+    <Style x:Key="TextButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#1877F2"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+</Application.Resources>

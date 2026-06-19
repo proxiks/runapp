@@ -1,0 +1,347 @@
+<UserControl x:Class="RunApp.Desktop.Views.ChatView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BackgroundBrush}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320"/>   <!-- Conversation List -->
+            <ColumnDefinition Width="*"/>      <!-- Chat Area -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Sidebar: Conversations -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,1,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Border Grid.Row="0" Padding="16,12">
+                    <Grid>
+                        <TextBlock Text="Messages" 
+                                 FontSize="20" 
+                                 FontWeight="Bold"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Button Content="✎"
+                              Click="OnNewMessage"
+                              HorizontalAlignment="Right"
+                              Style="{StaticResource IconButtonStyle}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Search -->
+                <Border Grid.Row="1" Padding="12,0,12,8">
+                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                          CornerRadius="20"
+                          Padding="10,8">
+                        <Grid>
+                            <TextBlock Text="🔍 Search messages"
+                                     Foreground="{DynamicResource TextMutedBrush}"
+                                     FontSize="14"
+                                     VerticalAlignment="Center"
+                                     Margin="8,0"/>
+                            <TextBox x:Name="ConversationSearch"
+                                   Background="Transparent"
+                                   BorderThickness="0"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   CaretBrush="{DynamicResource AccentBrush}"
+                                   FontSize="14"
+                                   Padding="8,0"
+                                   TextChanged="OnSearchConversations"/>
+                        </Grid>
+                    </Border>
+                </Border>
+
+                <!-- Conversation List -->
+                <ScrollViewer Grid.Row="2" 
+                            VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="ConversationList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource ConversationItemStyle}"
+                                      MouseLeftButtonDown="OnConversationSelected">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Avatar -->
+                                        <Border Grid.Column="0"
+                                              Width="48" 
+                                              Height="48"
+                                              CornerRadius="24"
+                                              Margin="0,0,12,0">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#1877F2" Offset="0"/>
+                                                    <GradientStop Color="#6B4C9A" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <TextBlock Text="{Binding DisplayName[0]}"
+                                                     Foreground="White"
+                                                     FontWeight="Bold"
+                                                     FontSize="18"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"/>
+                                        </Border>
+
+                                        <!-- Info -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                                         FontWeight="SemiBold"
+                                                         FontSize="15"/>
+                                                <ContentControl Content="{Binding VerifiedBadge}"
+                                                              Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding LastMessagePreview}"
+                                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                                     FontSize="13"
+                                                     TextTrimming="CharacterEllipsis"
+                                                     MaxWidth="180"/>
+                                        </StackPanel>
+
+                                        <!-- Meta -->
+                                        <StackPanel Grid.Column="2" 
+                                                  HorizontalAlignment="Right"
+                                                  VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding LastMessageTime}"
+                                                     Foreground="{DynamicResource TextMutedBrush}"
+                                                     FontSize="12"/>
+                                            <Border x:Name="UnreadBadge"
+                                                  Background="{DynamicResource DangerBrush}"
+                                                  CornerRadius="10"
+                                                  Padding="6,2"
+                                                  HorizontalAlignment="Right"
+                                                  Margin="0,4,0,0"
+                                                  Visibility="{Binding UnreadCount, Converter={StaticResource CountToVisibility}}">
+                                                <TextBlock Text="{Binding UnreadCount}"
+                                                         Foreground="White"
+                                                         FontSize="11"
+                                                         FontWeight="Bold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Right: Chat Area -->
+        <Grid Grid.Column="1" x:Name="ChatArea">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>    <!-- Header -->
+                <RowDefinition Height="*"/>       <!-- Messages -->
+                <RowDefinition Height="Auto"/>    <!-- Input -->
+            </Grid.RowDefinitions>
+
+            <!-- Empty State -->
+            <Border Grid.Row="0" Grid.RowSpan="3"
+                  x:Name="EmptyState"
+                  Background="{DynamicResource BackgroundBrush}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="💬" FontSize="64" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Select a conversation"
+                             Foreground="{DynamicResource TextSecondaryBrush}"
+                             FontSize="16"
+                             Margin="0,16,0,0"/>
+                    <TextBlock Text="or start a new message"
+                             Foreground="{DynamicResource TextMutedBrush}"
+                             FontSize="14"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Chat Header -->
+            <Border Grid.Row="0"
+                  x:Name="ChatHeader"
+                  Background="{DynamicResource SurfaceBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="0,0,0,1"
+                  Padding="16,12"
+                  Visibility="Collapsed">
+                <Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="36" 
+                              Height="36"
+                              CornerRadius="18"
+                              Background="{DynamicResource AccentBrush}"
+                              Margin="0,0,12,0">
+                            <TextBlock x:Name="HeaderAvatar"
+                                     Foreground="White"
+                                     FontWeight="Bold"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="HeaderName"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         FontWeight="SemiBold"
+                                         FontSize="15"/>
+                                <ContentControl x:Name="HeaderVerifiedBadge" Margin="4,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock x:Name="HeaderStatus"
+                                     Foreground="{DynamicResource SuccessBrush}"
+                                     FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="📞" Style="{StaticResource IconButtonStyle}"/>
+                        <Button Content="📹" Style="{StaticResource IconButtonStyle}"/>
+                        <Button Content="ℹ" Style="{StaticResource IconButtonStyle}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Messages -->
+            <ScrollViewer Grid.Row="1"
+                        x:Name="MessagesScroll"
+                        VerticalScrollBarVisibility="Auto"
+                        Visibility="Collapsed">
+                <ItemsControl x:Name="MessagesList" Margin="16,8">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource MessageBubbleStyle}"
+                                  HorizontalAlignment="{Binding Alignment}">
+                                <StackPanel MaxWidth="480">
+                                    <!-- Reply reference -->
+                                    <Border x:Name="ReplyBorder"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          CornerRadius="8,8,0,0"
+                                          Padding="8,6"
+                                          Margin="0,0,0,4"
+                                          Visibility="{Binding ReplyTo, Converter={StaticResource NullToVisibility}}">
+                                        <TextBlock Text="{Binding ReplyToPreview}"
+                                                 Foreground="{DynamicResource TextMutedBrush}"
+                                                 FontSize="12"
+                                                 TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+
+                                    <!-- Content -->
+                                    <TextBlock Text="{Binding DecryptedContent}"
+                                             Foreground="{Binding IsOwn, Converter={StaticResource OwnToForeground}}"
+                                             FontSize="14"
+                                             TextWrapping="Wrap"/>
+
+                                    <!-- Media -->
+                                    <Border x:Name="MediaBorder"
+                                          Visibility="{Binding MediaUrl, Converter={StaticResource NullToVisibility}}"
+                                          CornerRadius="8"
+                                          Margin="0,4,0,0">
+                                        <Image Source="{Binding MediaThumbnail}"
+                                             MaxHeight="200"
+                                             Stretch="Uniform"/>
+                                    </Border>
+
+                                    <!-- Footer -->
+                                    <StackPanel Orientation="Horizontal"
+                                              HorizontalAlignment="Right"
+                                              Margin="0,4,0,0">
+                                        <TextBlock Text="{Binding Time}"
+                                                 Foreground="{Binding IsOwn, Converter={StaticResource OwnToTimeColor}}"
+                                                 FontSize="11"/>
+                                        <TextBlock Text="{Binding ReadStatus}"
+                                                 FontSize="11"
+                                                 Margin="4,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Typing Indicator -->
+            <Border Grid.Row="1"
+                  x:Name="TypingIndicator"
+                  Background="Transparent"
+                  VerticalAlignment="Bottom"
+                  Margin="16,0"
+                  Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="●●●"
+                             Foreground="{DynamicResource AccentBrush}"
+                             FontSize="20">
+                        <TextBlock.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                       From="1" To="0.3" Duration="0:0:0.5"
+                                                       AutoReverse="True"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </TextBlock.Triggers>
+                    </TextBlock>
+                    <TextBlock Text="typing..."
+                             Foreground="{DynamicResource TextMutedBrush}"
+                             FontSize="12"
+                             Margin="8,0,0,0"
+                             VerticalAlignment="Bottom"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Input Area -->
+            <Border Grid.Row="2"
+                  x:Name="InputArea"
+                  Background="{DynamicResource SurfaceBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="0,1,0,0"
+                  Padding="16,12"
+                  Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Attach -->
+                    <Button Grid.Column="0"
+                          Content="📎"
+                          Click="OnAttachFile"
+                          Style="{StaticResource IconButtonStyle}"
+                          Margin="0,0,8,0"/>
+
+                    <!-- Text Input -->
+                    <Border Grid.Column="1"
+                          Background="{DynamicResource SurfaceHoverBrush}"
+                          CornerRadius="20"
+                          Padding="12,8">
+                        <TextBox x:Name="MessageInput"
+                               Background="Transparent"
+                               BorderThickness="0"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               CaretBrush="{DynamicResource AccentBrush}"
+                               FontSize="15"
+                               AcceptsReturn="True"
+                               TextWrapping="Wrap"
+                               MaxHeight="120"
+                               PreviewKeyDown="OnInputKeyDown"/>
+                    </Border>
+
+                    <!-- Send -->
+                    <Button Grid.Column="2"
+                          Content="➤"
+                          Click="OnSendMessage"
+                          Style="{StaticResource SendButtonStyle}"
+                          Margin="8,0,0,0"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

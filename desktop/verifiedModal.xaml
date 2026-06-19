@@ -1,0 +1,109 @@
+<Window x:Class="RunApp.Desktop.Views.VerifiedModal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RunApp.Desktop.Controls"
+        Title="RunApp Verified" 
+        Height="600" 
+        Width="480"
+        WindowStartupLocation="CenterScreen"
+        Background="#18191A"
+        ResizeMode="NoResize">
+
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+
+                <!-- Badge -->
+                <local:VerifiedBadge Width="64" 
+                                   Height="64"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,16,0,16"/>
+
+                <TextBlock Text="RunApp Verified" 
+                         FontSize="28" 
+                         FontWeight="Bold"
+                         Foreground="White"
+                         HorizontalAlignment="Center"/>
+
+                <TextBlock Text="Stand out. Get seen. Be secure." 
+                         Foreground="#B0B3B8"
+                         FontSize="15"
+                         HorizontalAlignment="Center"
+                         Margin="0,8,0,24"/>
+
+                <!-- Price -->
+                <Border Background="#242526"
+                      CornerRadius="16"
+                      Padding="24"
+                      Margin="0,0,0,24">
+                    <StackPanel>
+                        <TextBlock Text="₹300" 
+                                 FontSize="48" 
+                                 FontWeight="Black"
+                                 Foreground="White"
+                                 HorizontalAlignment="Center"/>
+                        <TextBlock Text="/month" 
+                                 Foreground="#65676B"
+                                 FontSize="16"
+                                 HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Benefits -->
+                <TextBlock Text="What's included:" 
+                         Foreground="White"
+                         FontSize="16"
+                         FontWeight="SemiBold"
+                         Margin="0,0,0,16"/>
+
+                <StackPanel x:Name="BenefitsList" Margin="0,0,0,24">
+                    <local:BenefitItem Icon="✓" 
+                                     Text="Blue verified badge on profile"/>
+                    <local:BenefitItem Icon="🚫" 
+                                     Text="No ads in Reels — ever"/>
+                    <local:BenefitItem Icon="🚀" 
+                                     Text="Priority ranking in algorithm"/>
+                    <local:BenefitItem Icon="📊" 
+                                     Text="Advanced analytics dashboard"/>
+                    <local:BenefitItem Icon="🔒" 
+                                     Text="Verified-only DMs"/>
+                    <local:BenefitItem Icon="🎧" 
+                                     Text="24/7 priority support"/>
+                </StackPanel>
+
+                <!-- Payment Button -->
+                <Button x:Name="PayButton"
+                      Content="Get Verified — ₹300/month"
+                      Click="OnPayClick"
+                      Style="{StaticResource VerifiedPayButton}"/>
+
+                <Button Content="Maybe Later"
+                      Click="OnClose"
+                      Style="{StaticResource GhostButtonStyle}"
+                      Margin="0,12,0,0"/>
+
+                <!-- Security -->
+                <StackPanel Orientation="Horizontal"
+                          HorizontalAlignment="Center"
+                          Margin="0,24,0,0">
+                    <TextBlock Text="🔒" Margin="0,0,8,0"/>
+                    <TextBlock Text="Secured by Razorpay & Lyfron"
+                             Foreground="#65676B"
+                             FontSize="12"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Loading overlay -->
+        <Border x:Name="LoadingOverlay"
+              Background="#CC000000"
+              Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center"
+                      HorizontalAlignment="Center">
+                <TextBlock Text="Processing..." 
+                         Foreground="White"
+                         FontSize="18"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
