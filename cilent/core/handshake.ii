@@ -1,0 +1,78 @@
+#include <windows.h>
+#include <wincrypt.h>
+#include <sodium.h>
+#include "protocol.h"
+
+#pragma comment(lib, "advapi32.lib")
+
+class LyfronClient {
+public:
+    bool Initialize();
+    bool PerformHandshake(SOCKET sock);
+    bool CalculateIntegrityHash(uint8_t out[32]);
+
+private:
+    uint8_t clientPrivKey[32];
+    uint8_t clientPubKey[32];
+    uint8_t sharedSecret[32];
+};
+
+bool LyfronClient::CalculateIntegrityHash(uint8_t out[32]) {
+    // Hash own executable
+    wchar_t path[MAX_PATH];
+    GetModuleFileNameW(NULL, path, MAX_PATH);
+    
+    HANDLE hFile = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) return false;
+
+    HCRYPTPROV hProv = 0;
+    HCRYPTHASH hHash = 0;
+    CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT);
+    CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash);
+
+    DWORD bytesRead;
+    BYTE buffer[8192];
+    while (ReadFile(hFile, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0) {
+        CryptHashData(hHash, buffer, bytesRead, 0);
+    }
+
+    DWORD hashLen = 32;
+    CryptGetHashParam(hHash, HP_HASHVAL, out, &hashLen, 0);
+
+    CryptDestroyHash(hHash);
+    CryptReleaseContext(hProv, 0);
+    CloseHandle(hFile);
+    return true;
+}
+
+bool LyfronClient::PerformHandshake(SOCKET sock) {
+    // Receive challenge from server
+    LyfronHeader hdr;
+    recv(sock, (char*)&hdr, sizeof(hdr), MSG_WAITALL);
+    
+    HandshakeChallenge challenge;
+    recv(sock, (char*)&challenge, sizeof(challenge), MSG_WAITALL);
+
+    // Generate ephemeral keypair
+    randombytes_buf(clientPrivKey, 32);
+    crypto_scalarmult_base(clientPubKey, clientPrivKey);
+
+    // Derive shared secret
+    crypto_scalarmult(sharedSecret, clientPrivKey, challenge.server_pubkey);
+
+    // Calculate HMAC proof
+    HandshakeResponse response;
+    memcpy(response.client_pubkey, clientPubKey, 32);
+    
+    crypto_auth_hmacsha512(response.proof, challenge.nonce, 32, sharedSecret);
+    response.client_version = LYFRON_VERSION;
+    
+    CalculateIntegrityHash(response.integrity_hash);
+
+    // Send response
+    LyfronHeader outHdr = {LYFRON_MAGIC, LYFRON_VERSION, sizeof(response), PKT_HANDSHAKE_RESPONSE, 0, 0};
+    send(sock, (char*)&outHdr, sizeof(outHdr), 0);
+    send(sock, (char*)&response, sizeof(response), 0);
+
+    return true;
+}
