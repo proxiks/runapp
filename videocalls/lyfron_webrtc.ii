@@ -1,0 +1,330 @@
+#include "lyfron_webrtc.h"
+#include <webrtc/api/peer_connection_interface.h>
+#include <webrtc/api/audio_codecs/builtin_audio_decoder_factory.h>
+#include <webrtc/api/audio_codecs/builtin_audio_encoder_factory.h>
+#include <webrtc/api/video_codecs/builtin_video_decoder_factory.h>
+#include <webrtc/api/video_codecs/builtin_video_encoder_factory.h>
+#include <webrtc/pc/test/fake_video_track_source.h>
+#include <memory>
+#include <string>
+#include <mutex>
+#include <openssl/evp.h>
+#include <openssl/aes.h>
+
+// Lyfron SRTP encryption context
+struct LyfronCryptoContext {
+    uint8_t key[32];
+    EVP_CIPHER_CTX* encrypt_ctx;
+    EVP_CIPHER_CTX* decrypt_ctx;
+    std::mutex mtx;
+};
+
+// Peer connection wrapper
+struct LyfronPeerConnectionImpl {
+    rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc;
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
+    std::unique_ptr<LyfronCryptoContext> crypto;
+    
+    OnIceCandidateCallback ice_cb;
+    OnConnectionStateChangeCallback state_cb;
+    std::vector<rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>> tracks;
+    
+    std::unique_ptr<rtc::Thread> network_thread;
+    std::unique_ptr<rtc::Thread> worker_thread;
+    std::unique_ptr<rtc::Thread> signaling_thread;
+};
+
+// Global WebRTC initialization
+class WebRtcInit {
+public:
+    WebRtcInit() {
+        rtc::InitializeSSL();
+    }
+    ~WebRtcInit() {
+        rtc::CleanupSSL();
+    }
+} g_webrtc_init;
+
+extern "C" {
+
+LyfronPeerConnection lyfron_create_peer_connection(
+    const char* stun_server,
+    OnIceCandidateCallback ice_cb,
+    OnConnectionStateChangeCallback state_cb) {
+    
+    auto impl = new LyfronPeerConnectionImpl();
+    impl->ice_cb = ice_cb;
+    impl->state_cb = state_cb;
+    
+    // Create threads
+    impl->network_thread = rtc::Thread::CreateWithSocketServer();
+    impl->network_thread->Start();
+    impl->worker_thread = rtc::Thread::Create();
+    impl->worker_thread->Start();
+    impl->signaling_thread = rtc::Thread::Create();
+    impl->signaling_thread->Start();
+    
+    // Create factory
+    impl->factory = webrtc::CreatePeerConnectionFactory(
+        impl->network_thread.get(),
+        impl->worker_thread.get(),
+        impl->signaling_thread.get(),
+        nullptr, // default adm
+        webrtc::CreateBuiltinAudioEncoderFactory(),
+        webrtc::CreateBuiltinAudioDecoderFactory(),
+        webrtc::CreateBuiltinVideoEncoderFactory(),
+        webrtc::CreateBuiltinVideoDecoderFactory(),
+        nullptr, nullptr);
+    
+    // Configure STUN/TURN
+    webrtc::PeerConnectionInterface::RTCConfiguration config;
+    config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
+    
+    webrtc::PeerConnectionInterface::IceServer ice_server;
+    ice_server.urls.push_back(stun_server);
+    config.servers.push_back(ice_server);
+    
+    // Lyfron TURN server for relay
+    webrtc::PeerConnectionInterface::IceServer turn_server;
+    turn_server.urls.push_back("turn:turn.lyfron.runapp.in:3478");
+    turn_server.username = "lyfron_user";
+    turn_server.password = "lyfron_secure_2026";
+    config.servers.push_back(turn_server);
+    
+    // Observer
+    class PCObserver : public webrtc::PeerConnectionObserver {
+    public:
+        LyfronPeerConnectionImpl* impl;
+        
+        void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override {}
+        
+        void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {}
+        
+        void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override {}
+        
+        void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {}
+        
+        void OnRenegotiationNeeded() override {}
+        
+        void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state) override {
+            if (impl->state_cb) {
+                impl->state_cb(static_cast<int>(new_state));
+            }
+        }
+        
+        void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) override {}
+        
+        void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override {
+            if (impl->ice_cb) {
+                std::string sdp;
+                candidate->ToString(&sdp);
+                impl->ice_cb(candidate->sdp_mid().c_str(), 
+                           candidate->sdp_mline_index(), 
+                           sdp.c_str());
+            }
+        }
+        
+        void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override {
+            auto track = transceiver->receiver()->track();
+            if (track) {
+                // Track added - notify C#
+            }
+        }
+        
+        void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override {}
+    };
+    
+    auto observer = std::make_unique<PCObserver>();
+    observer->impl = impl;
+    
+    auto result = impl->factory->CreatePeerConnection(config, nullptr, nullptr, observer.get());
+    if (!result.ok()) {
+        delete impl;
+        return nullptr;
+    }
+    
+    impl->pc = result.MoveValue();
+    observer.release(); // Owned by peer connection
+    
+    // Initialize Lyfron crypto
+    impl->crypto = std::make_unique<LyfronCryptoContext>();
+    RAND_bytes(impl->crypto->key, 32);
+    impl->crypto->encrypt_ctx = EVP_CIPHER_CTX_new();
+    impl->crypto->decrypt_ctx = EVP_CIPHER_CTX_new();
+    
+    return impl;
+}
+
+void lyfron_destroy_peer_connection(LyfronPeerConnection pc) {
+    auto impl = static_cast<LyfronPeerConnectionImpl*>(pc);
+    if (!impl) return;
+    
+    impl->pc->Close();
+    delete impl;
+}
+
+int lyfron_add_audio_track(LyfronPeerConnection pc, const char* track_id) {
+    auto impl = static_cast<LyfronPeerConnectionImpl*>(pc);
+    if (!impl) return -1;
+    
+    auto options = webrtc::PeerConnectionFactoryInterface::AudioSourceOptions();
+    auto source = impl->factory->CreateAudioSource(options);
+    auto track = impl->factory->CreateAudioTrack(track_id, source.get());
+    
+    auto result = impl->pc->AddTrack(track, {"audio"});
+    if (!result.ok()) return -1;
+    
+    impl->tracks.push_back(track);
+    return impl->tracks.size() - 1;
+}
+
+int lyfron_add_video_track(LyfronPeerConnection pc, const char* track_id, void* native_window) {
+    auto impl = static_cast<LyfronPeerConnectionImpl*>(pc);
+    if (!impl) return -1;
+    
+    // Create video source from camera
+    auto capturer = webrtc::VideoCapturer::Create("Camera");
+    auto source = impl->factory->CreateVideoSource(std::move(capturer));
+    auto track = impl->factory->CreateVideoTrack(track_id, source.get());
+    
+    auto result = impl->pc->AddTrack(track, {"video"});
+    if (!result.ok()) return -1;
+    
+    impl->tracks.push_back(track);
+    return impl->tracks.size() - 1;
+}
+
+int lyfron_create_offer(LyfronPeerConnection pc, char* sdp_out, size_t sdp_len) {
+    auto impl = static_cast<LyfronPeerConnectionImpl*>(pc);
+    if (!impl) return -1;
+    
+    class CreateSessionDescriptionObserver : public webrtc::CreateSessionDescriptionObserver {
+    public:
+        std::string* sdp;
+        bool* done;
+        
+        void OnSuccess(webrtc::SessionDescriptionInterface* desc) override {
+            desc->ToString(sdp);
+            *done = true;
+        }
+        void OnFailure(webrtc::RTCError error) override {
+            *done = true;
+        }
+    };
+    
+    std::string sdp;
+    bool done = false;
+    auto observer = rtc::make_ref_counted<CreateSessionDescriptionObserver>();
+    observer->sdp = &sdp;
+    observer->done = &done;
+    
+    impl->pc->CreateOffer(observer.get(), webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+    
+    // Wait (with timeout)
+    int timeout = 5000;
+    while (!done && timeout > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        timeout -= 10;
+    }
+    
+    if (sdp.empty()) return -1;
+    
+    strncpy(sdp_out, sdp.c_str(), sdp_len - 1);
+    sdp_out[sdp_len - 1] = '\0';
+    return 0;
+}
+
+int lyfron_set_remote_description(LyfronPeerConnection pc, const char* type, const char* sdp) {
+    auto impl = static_cast<LyfronPeerConnectionImpl*>(pc);
+    if (!impl) return -1;
+    
+    auto desc = webrtc::CreateSessionDescription(type, sdp);
+    if (!desc) return -1;
+    
+    class SetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver {
+    public:
+        bool* done;
+        void OnSuccess() override { *done = true; }
+        void OnFailure(webrtc::RTCError error) override { *done = true; }
+    };
+    
+    bool done = false;
+    auto observer = rtc::make_ref_counted<SetSessionDescriptionObserver>();
+    observer->done = &done;
+    
+    impl->pc->SetRemoteDescription(std::move(desc), observer.get());
+    
+    int timeout = 5000;
+    while (!done && timeout > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        timeout -= 10;
+    }
+    
+    return done ? 0 : -1;
+}
+
+void lyfron_set_audio_enabled(LyfronPeerConnection pc, int enabled) {
+    auto impl = static_cast<LyfronPeerConnectionImpl*>(pc);
+    if (!impl) return;
+    
+    for (auto& track : impl->tracks) {
+        if (track->kind() == "audio") {
+            track->set_enabled(enabled != 0);
+        }
+    }
+}
+
+void lyfron_set_video_enabled(LyfronPeerConnection pc, int enabled) {
+    auto impl = static_cast<LyfronPeerConnectionImpl*>(pc);
+    if (!impl) return;
+    
+    for (auto& track : impl->tracks) {
+        if (track->kind() == "video") {
+            track->set_enabled(enabled != 0);
+        }
+    }
+}
+
+// Lyfron SRTP encryption
+int lyfron_encrypt_srtp_packet(void* packet, size_t len, const uint8_t* key, size_t key_len) {
+    if (!packet || len < 12 || !key || key_len != 32) return -1;
+    
+    uint8_t* data = static_cast<uint8_t*>(packet);
+    uint8_t iv[12];
+    memcpy(iv, data, 12); // Use RTP header as IV base
+    
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) return -1;
+    
+    // AES-GCM-256 encryption
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, key, iv) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+    
+    int out_len;
+    uint8_t* payload = data + 12;
+    size_t payload_len = len - 12;
+    
+    if (EVP_EncryptUpdate(ctx, payload, &out_len, payload, payload_len) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+    
+    // Get auth tag
+    uint8_t tag[16];
+    if (EVP_EncryptFinal_ex(ctx, nullptr, &out_len) != 1 ||
+        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+    
+    EVP_CIPHER_CTX_free(ctx);
+    
+    // Append tag to packet
+    memcpy(data + len, tag, 16);
+    
+    return 0;
+}
+
+} // extern "C"

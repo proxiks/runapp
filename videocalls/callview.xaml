@@ -1,0 +1,243 @@
+<!-- Add to CallView.xaml controls section -->
+
+<!-- Invite Button (visible during group calls or for host) -->
+<Button x:Name="InviteButton"
+        Content="👤+"
+        Click="OnInviteClick"
+        ToolTip="Invite followers"
+        Style="{StaticResource CallControlButton}"
+        Visibility="Collapsed"/>
+
+<!-- Participants Panel (slide-out) -->
+<Border x:Name="ParticipantsPanel"
+        Grid.Row="0" Grid.RowSpan="3"
+        HorizontalAlignment="Right"
+        Width="280"
+        Background="#CC18191A"
+        BorderBrush="#3A3B3C"
+        BorderThickness="1,0,0,0"
+        Margin="0,0,-280,0">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                Padding="16,12"
+                BorderBrush="#3A3B3C"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <TextBlock Text="Participants" 
+                         Foreground="White"
+                         FontWeight="SemiBold"/>
+                <TextBlock x:Name="ParticipantCount"
+                         HorizontalAlignment="Right"
+                         Foreground="#B0B3B8"/>
+            </Grid>
+        </Border>
+
+        <!-- Invite Section -->
+        <Border Grid.Row="1"
+                Padding="12"
+                BorderBrush="#3A3B3C"
+                BorderThickness="0,0,0,1">
+            <Button Content="+ Invite Followers"
+                    Click="OnInviteFollowers"
+                    Background="#1877F2"
+                    Foreground="White"
+                    Padding="12,8"
+                    BorderThickness="0"
+                    CornerRadius="8"/>
+        </Border>
+
+        <!-- Participant List -->
+        <ScrollViewer Grid.Row="2" 
+                    VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="ParticipantsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="12,8"
+                              BorderBrush="#3A3B3C"
+                              BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                      Width="36"
+                                      Height="36"
+                                      CornerRadius="18"
+                                      Background="LinearGradient(135deg, #1877f2, #6b4c9a)"
+                                      Margin="0,0,10,0">
+                                    <TextBlock Text="{Binding Initial}"
+                                             Foreground="White"
+                                             FontWeight="Bold"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"/>
+                                </Border>
+
+                                <StackPanel Grid.Column="1" 
+                                          VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}"
+                                                 Foreground="White"
+                                                 FontWeight="SemiBold"
+                                                 FontSize="14"/>
+                                        <ContentControl Content="{Binding VerifiedBadge}"
+                                                      Margin="4,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Status}"
+                                             Foreground="#65676B"
+                                             FontSize="12"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" 
+                                          Orientation="Horizontal"
+                                          VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding MicIcon}"
+                                             Foreground="#B0B3B8"
+                                             FontSize="16"
+                                             Margin="0,0,8,0"/>
+                                    <TextBlock Text="{Binding CamIcon}"
+                                             Foreground="#B0B3B8"
+                                             FontSize="16"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</Border>
+
+<!-- Invite Modal -->
+<Grid x:Name="InviteModal"
+      Grid.Row="0" Grid.RowSpan="3"
+      Background="#CC000000"
+      Visibility="Collapsed">
+    <Border Width="400"
+          Height="500"
+          Background="#242526"
+          CornerRadius="16"
+          VerticalAlignment="Center"
+          HorizontalAlignment="Center">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0"
+                  Padding="16,12"
+                  BorderBrush="#3A3B3C"
+                  BorderThickness="0,0,0,1">
+                <Grid>
+                    <TextBlock Text="Invite Followers"
+                             Foreground="White"
+                             FontSize="18"
+                             FontWeight="SemiBold"/>
+                    <Button Content="✕"
+                          Click="OnCloseInvite"
+                          HorizontalAlignment="Right"
+                          Style="{StaticResource GhostButtonStyle}"/>
+                </Grid>
+            </Border>
+
+            <!-- Search -->
+            <Border Grid.Row="1"
+                  Padding="12"
+                  BorderBrush="#3A3B3C"
+                  BorderThickness="0,0,0,1">
+                <Border Background="#3A3B3C"
+                      CornerRadius="20"
+                      Padding="10,8">
+                    <TextBox x:Name="InviteSearch"
+                           Background="Transparent"
+                           BorderThickness="0"
+                           Foreground="White"
+                           CaretBrush="#1877F2"
+                           TextChanged="OnInviteSearch"/>
+                </Border>
+            </Border>
+
+            <!-- Follower List -->
+            <ScrollViewer Grid.Row="2"
+                        VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="InviteFollowersList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="12,8"
+                                  BorderBrush="#3A3B3C"
+                                  BorderThickness="0,0,0,1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0"
+                                          Width="40"
+                                          Height="40"
+                                          CornerRadius="20"
+                                          Background="LinearGradient(135deg, #1877f2, #6b4c9a)"
+                                          Margin="0,0,12,0">
+                                        <TextBlock Text="{Binding Initial}"
+                                                 Foreground="White"
+                                                 FontWeight="Bold"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" 
+                                              VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}"
+                                                 Foreground="White"
+                                                 FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Status}"
+                                                 Foreground="#65676B"
+                                                 FontSize="12"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="2"
+                                          Content="Invite"
+                                          Click="OnSendInvite"
+                                          CommandParameter="{Binding Id}"
+                                          Background="#1877F2"
+                                          Foreground="White"
+                                          Padding="12,6"
+                                          BorderThickness="0"
+                                          CornerRadius="16"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Bulk Actions -->
+            <Border Grid.Row="3"
+                  Padding="12"
+                  BorderBrush="#3A3B3C"
+                  BorderThickness="0,1,0,0">
+                <Button Content="Invite Selected"
+                      Click="OnBulkInvite"
+                      Background="#42B72A"
+                      Foreground="White"
+                      Padding="12,8"
+                      BorderThickness="0"
+                      CornerRadius="8"/>
+            </Border>
+        </Grid>
+    </Border>
+</Grid>
